@@ -16,13 +16,15 @@
     },
     "main": "npmdiff.js",
     "scripts": {
-        "test": "make test-fun"
+        "test": "make test",
+        "test-fun": "make test-fun"
     },
     "dependencies": {
         "optimist": "0.5.2"
     },
     "devDependencies": {
         "chai": "1.7.0",
+        "execSync": "0.0.4",
         "mocha": "1.11.0"
     },
     "engines": {
