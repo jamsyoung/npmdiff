@@ -20,7 +20,9 @@
         "test-fun": "make test-fun"
     },
     "dependencies": {
-        "optimist": "0.5.2"
+        "colors": "0.6.0-1",
+        "optimist": "0.5.2",
+        "tar": "0.1.17"
     },
     "devDependencies": {
         "chai": "1.7.0",
