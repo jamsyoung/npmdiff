@@ -6,6 +6,7 @@
 var fs = require('fs'),
     os = require('os'),
     argv,
+    exec = require('child_process').exec,
     http = require('http'),
     target1,
     target2,
@@ -74,7 +75,8 @@ processTarget = function (target) {
         packageName,
         packageFilename,
         localPackagePath,
-        remotePackagePath;
+        remotePackagePath,
+        packageNameWithVersion;
 
     if (fs.existsSync(target)) {
         /*
@@ -91,27 +93,33 @@ processTarget = function (target) {
          * 2. extract it to /tmp/packagename-version/package
          */
         packageName = target.replace(/@[0-9\.]+$/, '');
-        packageFilename = target.replace('@', '-') + '.tgz';
+        packageNameWithVersion = target.replace('@', '-');
+        packageFilename = packageNameWithVersion + '.tgz';
         remotePackagePath = 'http://isaacs.ic.ht/registry/' + packageName + '/' + packageFilename;
         localPackagePath = '/tmp/' + packageFilename;
 
-        file = fs.createWriteStream(localPackagePath);
+        fs.mkdir('/tmp/' + packageNameWithVersion, function () {
+            file = fs.createWriteStream(localPackagePath);
+            http.get(remotePackagePath, function (response) {
+                if (response.statusCode === 200) {
+                    response.pipe(file);
+                    // console.log('tar xvzf ' + localPackagePath + ' -C /tmp/' + packageNameWithVersion);
+                    // exec('tar xvzf ' + localPackagePath + ' -C /tmp/' + packageNameWithVersion, function (error) {
+                    //     if (error) {
+                    //         console.log(error);
+                    //     }
+                    //     console.log('extracted to /tmp/' + packageNameWithVersion);
+                    // });
+                } else {
+                    console.log('[ERROR] '.red + 'HTTP Status: ' + response.statusCode + ' ' + remotePackagePath);
+                    process.exit(1);
+                }
+            }).on('error', function (error) {
+                console.log('[ERROR] '.red + error.message);
+            });
 
-        http.get(remotePackagePath, function (response) {
-            if (response.statusCode === 200) {
-                response.pipe(file);
-                // exec('tar xvzf ' + localPackagePath + ' -C /tmp', function (error, stdout, stderr) {
-                //     console.log('extracted to /tmp/package');
-                // });
-            } else {
-                console.log('[ERROR] '.red + 'HTTP Status: ' + response.statusCode + ' ' + remotePackagePath);
-                process.exit(1);
-            }
-        }).on('error', function (error) {
-            console.log('[ERROR] '.red + error.message);
+            result = '/tmp/' + packageFilename;
         });
-
-        result = '/tmp/' + packageFilename;
     }
 
     return result;
