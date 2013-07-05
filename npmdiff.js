@@ -12,6 +12,7 @@ var fs = require('fs'),
     target2,
     optimist = require('optimist'),
     metaData = require('./package.json'),
+    handleError,
     processTarget,
     platformSupport,
     target1LocalPath,
@@ -69,13 +70,18 @@ validatePlatformSupport = function () {
     }
 };
 
+handleError = function (error) {
+    console.log('[ERROR] '.red + error.message);
+    process.exit(1);
+};
+
 processTarget = function (target) {
     var file,
         result = false,
         packageName,
         packageFilename,
-        localPackagePath,
-        remotePackagePath,
+        localPackageLocation,
+        remotePackageLocation,
         packageNameWithVersion;
 
     if (fs.existsSync(target)) {
@@ -92,34 +98,64 @@ processTarget = function (target) {
          * 1. pull the package down from the public npm repository
          * 2. extract it to /tmp/packagename-version/package
          */
+
+        /* this converts package@0.0.1 to package */
         packageName = target.replace(/@[0-9\.]+$/, '');
+
+        /* this converts package@0.0.1 to package-0.0.1 */
         packageNameWithVersion = target.replace('@', '-');
+
+        /* this converts package@0.0.1 t0 package-0.0.1.tgz */
         packageFilename = packageNameWithVersion + '.tgz';
-        remotePackagePath = 'http://isaacs.ic.ht/registry/' + packageName + '/' + packageFilename;
-        localPackagePath = '/tmp/' + packageFilename;
 
-        fs.mkdir('/tmp/' + packageNameWithVersion, function () {
-            file = fs.createWriteStream(localPackagePath);
-            http.get(remotePackagePath, function (response) {
-                if (response.statusCode === 200) {
-                    response.pipe(file);
-                    // console.log('tar xvzf ' + localPackagePath + ' -C /tmp/' + packageNameWithVersion);
-                    // exec('tar xvzf ' + localPackagePath + ' -C /tmp/' + packageNameWithVersion, function (error) {
-                    //     if (error) {
-                    //         console.log(error);
-                    //     }
-                    //     console.log('extracted to /tmp/' + packageNameWithVersion);
-                    // });
-                } else {
-                    console.log('[ERROR] '.red + 'HTTP Status: ' + response.statusCode + ' ' + remotePackagePath);
-                    process.exit(1);
-                }
-            }).on('error', function (error) {
-                console.log('[ERROR] '.red + error.message);
-            });
+        /* this creates http://isaacs.ic.ht/registry/package/package-0.0.1.tgz */
+        remotePackageLocation = 'http://isaacs.ic.ht/registry/' + packageName + '/' + packageFilename;
 
-            result = '/tmp/' + packageFilename;
+        /* this creates /tmp/package-0.0.1.tgz */
+        localPackageLocation = '/tmp/' + packageFilename;
+
+        /* delete /tmp/package-0.0.1 directory if it exists */
+        if (fs.existsSync('/tmp/' + packageNameWithVersion)) {
+            fs.rmdirSync('/tmp/' + packageNameWithVersion);
+            exec('rm -rf /tmp/' + packageNameWithVersion);
+        }
+
+        /* create /tmp/package-0.0.1 directory */
+        fs.mkdirSync('/tmp/' + packageNameWithVersion);
+
+        /* downloand and uncompress the remote package-0.0.1.tgz */
+        file = fs.createWriteStream(localPackageLocation, { mode: '0777' });
+        http.get(remotePackageLocation, function (response) {
+            if (response.statusCode === 200) {
+                response.pipe(file);
+                response.on('end', function () {
+                    exec('tar xvzf ' + localPackageLocation + ' -C /tmp/' + packageNameWithVersion, function (error) {
+                        if (error) {
+                            handleError(error);
+                        }
+                        console.log('extracted to /tmp/' + packageNameWithVersion);
+                    });
+                });
+            } else {
+                handleError({ message: 'HTTP Status: ' + response.statusCode + ' ' + remotePackageLocation });
+            }
+        }).on('error', function (error) {
+            handleError(error);
         });
+
+
+
+        // fs.mkdir('/tmp/' + packageNameWithVersion, function (error) {
+        //     if (error) {
+        //         // {"errno":47,"code":"EEXIST","path":"/tmp/dust-compiler-0.0.9"}
+        //         if (error.code === 'EEXIST') {
+        //             // delete the error.path
+        //         }
+        //     }
+        // });
+
+
+        result = '/tmp/' + packageFilename;
     }
 
     return result;
