@@ -27,6 +27,11 @@ argv = optimist
     .alias('version', 'v').describe('version', 'Show the current version')
     .argv;
 
+handleError = function (error) {
+    console.log('[ERROR] '.red + error.message);
+    process.exit(1);
+};
+
 /* handle -v|--version arguments */
 if (argv.v) {
     console.log('npmdiff v' + metaData.version);
@@ -41,7 +46,7 @@ if (argv.h) {
 
 /* handle required target1 and target 2 arguments */
 if (argv._.length !== 2) {
-    console.log('[ERROR] '.red + 'missing arguments');
+    handleError({ message: 'missing arguments' });
     optimist.showHelp();
     process.exit(1);
 } else {
@@ -65,14 +70,9 @@ platformSupport = function (platform) {
 
 validatePlatformSupport = function () {
     if (!platformSupport(os.platform)) {
-        console.log('[ERROR] '.red + 'This platform is not supported.  Currently only unix platforms are supported.');
+        handleError({ message: 'This platform is not supported.  Currently only unix platforms are supported.' });
         process.exit(1);
     }
-};
-
-handleError = function (error) {
-    console.log('[ERROR] '.red + error.message);
-    process.exit(1);
 };
 
 processTarget = function (target) {
