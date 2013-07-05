@@ -10,6 +10,7 @@ var fs = require('fs'),
     http = require('http'),
     target1,
     target2,
+    execSync = require('execSync'),
     optimist = require('optimist'),
     metaData = require('./package.json'),
     handleError,
@@ -53,7 +54,6 @@ if (argv._.length !== 2) {
     target1 = argv._[0];
     target2 = argv._[1];
 }
-
 
 platformSupport = function (platform) {
     /*
@@ -105,7 +105,7 @@ processTarget = function (target) {
         /* this converts package@0.0.1 to package-0.0.1 */
         packageNameWithVersion = target.replace('@', '-');
 
-        /* this converts package@0.0.1 t0 package-0.0.1.tgz */
+        /* this converts package@0.0.1 to package-0.0.1.tgz */
         packageFilename = packageNameWithVersion + '.tgz';
 
         /* this creates http://isaacs.ic.ht/registry/package/package-0.0.1.tgz */
@@ -114,29 +114,33 @@ processTarget = function (target) {
         /* this creates /tmp/package-0.0.1.tgz */
         localPackageLocation = '/tmp/' + packageFilename;
 
-        /* delete /tmp/package-0.0.1 directory if it exists */
-        if (fs.existsSync('/tmp/' + packageNameWithVersion)) {
-            fs.rmdirSync('/tmp/' + packageNameWithVersion);
-            exec('rm -rf /tmp/' + packageNameWithVersion);
-        }
-
-        /* create /tmp/package-0.0.1 directory */
-        fs.mkdirSync('/tmp/' + packageNameWithVersion);
-
         /* downloand and uncompress the remote package-0.0.1.tgz */
         file = fs.createWriteStream(localPackageLocation, { mode: '0777' });
         http.get(remotePackageLocation, function (response) {
             if (response.statusCode === 200) {
+
+                /* delete /tmp/package-0.0.1 directory if it exists */
+                if (fs.existsSync('/tmp/' + packageNameWithVersion)) {
+                    fs.rmdirSync('/tmp/' + packageNameWithVersion);
+                    execSync.exec('rm -r /tmp/' + packageNameWithVersion);
+                }
+
+                /* create /tmp/package-0.0.1 directory */
+                fs.mkdirSync('/tmp/' + packageNameWithVersion);
+
+                /* stream the output into /tmp/package-0.0.1.tgz */
                 response.pipe(file);
                 response.on('end', function () {
+                    // change to synchronous
                     exec('tar xvzf ' + localPackageLocation + ' -C /tmp/' + packageNameWithVersion, function (error) {
                         if (error) {
                             handleError(error);
                         }
-                        console.log('extracted to /tmp/' + packageNameWithVersion);
+                        console.log('extracted to /tmp/' + packageNameWithVersion); // this is slightly wrong
                     });
                 });
             } else {
+                // need to determine if this is just a local reference that is not found, or a npm package that does not exist */
                 handleError({ message: 'HTTP Status: ' + response.statusCode + ' ' + remotePackageLocation });
             }
         }).on('error', function (error) {
@@ -167,5 +171,3 @@ target1LocalPath = processTarget(target1);
 target2LocalPath = processTarget(target2);
 
 console.log('do the diff now');
-
-
