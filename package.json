@@ -21,12 +21,12 @@
     },
     "dependencies": {
         "colors": "0.6.0-1",
+        "execSync": "0.0.4",
         "optimist": "0.5.2",
         "tar": "0.1.17"
     },
     "devDependencies": {
         "chai": "1.7.0",
-        "execSync": "0.0.4",
         "mocha": "1.11.0"
     },
     "engines": {
